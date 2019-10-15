@@ -15,11 +15,14 @@ using namespace std;
 void preencheOperacoes (struct operacoes_info operacoes[]);
 void preencheDiretivas (struct diretivas_info diretivas[]);
 void formataArquivo(ifstream& arquivo_original, fstream& arquivo_formatado);
-void linha(fstream& arquivo_formatado, fstream& arquivo_objeto, fstream& arquivo_pre_processado, struct operacoes_info operacoes[], struct diretivas_info diretivas[], struct simbolo_tab Tsimbolos[]);
-int procuraInstrucao (struct operacoes_info operacoes[], string mnemonico);
+void linha(fstream& arquivo_formatado, fstream& arquivo_objeto, fstream& arquivo_pre_processado, struct operacoes_info operacoes[], struct diretivas_info diretivas[], struct simbolo_tab Tsimbolos[], struct diretiva_tab Tdiretivas[]);
+int procuraInstrucao(struct operacoes_info operacoes[], string mnemonico);
+int procuraDiretiva(struct diretivas_info diretivas[], string mnemonico);
 int procuraSimbolo(string simbolo, struct simbolo_tab Tsimbolos[]);
 int insereSimbolo(struct simbolo_tab Tsimbolos[], string simbolo, string mnemonico, string operando1, string operando2, string vec_op_1, string vec_op_2);
-int preProcessamento(fstream& arquivo_pre_processado, string linha);
+void preProcessamento(fstream& arquivo_pre_processado, string simbolo, string mnemonico, string operando1, string operando2, string vec_op_1, string vec_op_2);
+int procuraEQU(string simbolo, struct diretiva_tab Tdiretivas[]);
+void insereEQU(string simbolo, string operando1, struct diretiva_tab Tdiretivas[]);
 
 //////////////////////////////////////////////////////////
 // Estruturas
@@ -44,8 +47,17 @@ struct simbolo_tab
     int flag_def = 0; // flag_def estabelece se o simbolo já foi definido; 1 - definido & 0 - não definido;
     int space = 0; //verifica se a diretiva atual é um SPACE
     int space_vec = 0;
+    int cte = 0;
+    int cte_val = 0;
     int pos_fim_lista = -1; // fim da lista
 };
+
+struct diretiva_tab
+{
+    string diretiva;
+    int valor;
+};
+
 /////////////////////////////////////////////////////////
 // Variáveis Globais
 unsigned int text_flag = 0, data_flag = 0;
@@ -53,7 +65,7 @@ int contador_de_simbolos = -1; // Quantidade de simbolos dentro da tabela de sim
 int contador_de_posicao = -1; //Posição absoluta dentro do arquivo de código (texto);
 int contador_de_linha_original = -1; //Posição do contador de linha (contador de programa). Serve para imprimir os erros.
 int contador_de_linha_pre = -1; //Posição do contador de linha do programa do arquivo pre processado. Serve para marcar a posição das labels.
-
+int contador_de_diretivas = -1;
 /////////////////////////////////////////////////////////
 // Codigo Principal
 
@@ -64,6 +76,7 @@ int main(int argc, char *argv[]){
     struct operacoes_info operacoes[NUMERO_DE_INSTRUCOES];
     struct diretivas_info diretivas[NUMERO_DE_DIRETIVAS];
     struct simbolo_tab Tsimbolos[NUMERO_DE_SIMBOLOS];
+    struct diretiva_tab Tdiretivas[NUMERO_DE_SIMBOLOS];
     ifstream arquivo_original;
     fstream arquivo_pre_processado;
     fstream arquivo_objeto;
@@ -133,15 +146,30 @@ int main(int argc, char *argv[]){
 
 // Montador de Passo Unico
 
-    linha(arquivo_formatado, arquivo_objeto, arquivo_pre_processado, operacoes, diretivas, Tsimbolos);
+    linha(arquivo_formatado, arquivo_objeto, arquivo_pre_processado, operacoes, diretivas, Tsimbolos, Tdiretivas);
 
-// Testando Tabela de simbolos
+//// Testando Tabela de simbolos
 //    cout << "Definido? - " << Tsimbolos[2].flag_def << endl;
 //    cout << "Definido? - " << Tsimbolos[2].valor << endl;
 //for(int i = 0; i <= Tsimbolos[2].flag_fim; i++){
 //    cout << "Lista - Simbolo 'H'- " << i << " - " << Tsimbolos[2].lista[i] << endl;
 //}
 //
+/*for(int i = 0; i <= contador_de_simbolos; i++){
+    cout << "Simb: " << Tsimbolos[i].simbolo << endl;
+    cout << "val: " << Tsimbolos[i].valor << endl;
+    for(int j = 0; j <= Tsimbolos[i].pos_fim_lista; j++){
+        cout << "end:: " << Tsimbolos[i].lista[j][0] << endl;
+        cout << "vec:: " << Tsimbolos[i].lista[j][1] << endl;
+    }
+    cout << "\n" << endl;
+}*/
+
+/*for(int i = 0; i <= contador_de_diretivas; i++){
+    cout << "Simb: " << Tdiretivas[i].diretiva << endl;
+    cout << "val: " << Tdiretivas[i].valor << endl;
+    cout << "\n" << endl;
+}*/
 
 // Encerrando programa
     arquivo_formatado.close();
@@ -305,13 +333,14 @@ void formataArquivo (ifstream& arquivo_original, fstream& arquivo_formatado)
 
 }
 
-void linha (fstream& arquivo_formatado, fstream& arquivo_objeto, fstream& arquivo_pre_processado, struct operacoes_info operacoes[], struct diretivas_info diretivas[], struct simbolo_tab Tsimbolos[])
+void linha (fstream& arquivo_formatado, fstream& arquivo_objeto, fstream& arquivo_pre_processado, struct operacoes_info operacoes[], struct diretivas_info diretivas[], struct simbolo_tab Tsimbolos[], struct diretiva_tab Tdiretivas[])
 {
     string linha;
     string simbolo, mnemonico, operando1, operando2;
     string vec_op_1, vec_op_2;
     string vazia = "\0";
     size_t posicaoINI, posicaoFIN, vec_pos;
+    int aux = 0, if_flag = 0, if_flag_count = 0;
 
     while(!arquivo_formatado.eof())
     {
@@ -443,16 +472,99 @@ void linha (fstream& arquivo_formatado, fstream& arquivo_objeto, fstream& arquiv
             }
         }
 
-        cout << "simbolo: |" << simbolo << "|" << endl;
+
+
+/*        cout << "simbolo: |" << simbolo << "|" << endl;
         cout << "mnemonico: |" << mnemonico << "|" << endl;
         cout << "Operando 1: |" << operando1 << "|" << endl;
         cout << "Operando 2: |" << operando2 << "|" << endl;
         cout << "vec_op_1: |" << vec_op_1 << "|" << endl;
         cout << "vec_op_2: |" << vec_op_2 << "|" << endl;
         cout << "\n\n";
+*/
 
-//        contador_de_simbolos = contador_de_simbolos + insereSimbolo(Tsimbolos, simbolo, mnemonico, operando1, operando2);
-//        cout << Tsimbolos[contador_de_simbolos].simbolo << "++" << endl;
+        /// Configura flag de secao
+        aux = procuraDiretiva(diretivas,mnemonico);
+        if(aux == 0){
+            if(operando1.compare("TEXT")==0){
+                text_flag = 1;
+            }else if(operando1.compare("DATA")==0){
+                data_flag = 1;
+            }else if(arquivo_formatado.eof() && data_flag == 0 && text_flag ==0){
+                cout << "Erro! Seção Text ou Seção Data faltando!" << endl;
+            }
+        }
+
+        /// Tratamento para EQU
+        aux = procuraDiretiva(diretivas,mnemonico);
+        if(aux == 3){
+            if(text_flag == 1 || data_flag == 1){
+                cout << "Erro! Diretiva EQU em secao não autorizada." << endl;
+            }
+            insereEQU(simbolo, operando1, Tdiretivas);
+            simbolo = "\0";
+            if_flag = 1;
+            if_flag_count = 1;
+        }
+
+
+        /// Tratamento para if
+        aux = procuraDiretiva(diretivas,mnemonico);
+        if(aux == 4){
+            aux = procuraEQU(operando1, Tdiretivas);
+            if(aux == -1){
+                cout << "Erro! IF sem operando EQU" << endl;
+            }else{
+                operando1 = to_string(Tdiretivas[aux].valor);
+                if(stoi(operando1, nullptr, 0)){
+                    if_flag = 1;
+                    if_flag_count = 1;
+                }else{
+                    if_flag = 1;
+                    if_flag_count = 2;
+                }
+            }
+        }else{
+            // Tratamento de EQU sem IF
+            aux = procuraEQU(operando1, Tdiretivas);
+            if(aux != -1){
+                operando1 = to_string(Tdiretivas[aux].valor);
+            }
+            cout << aux << endl;
+
+            aux = procuraEQU(operando2, Tdiretivas);
+            if(aux != -1){
+                operando2 = to_string(Tdiretivas[aux].valor);
+            }
+        }
+
+
+        /// ESCREVE NO ARQUIVO PRE-PROCESSADO
+        if(if_flag == 1){
+            if(if_flag_count == 0){
+                preProcessamento(arquivo_pre_processado, simbolo, mnemonico, operando1, operando2, vec_op_1, vec_op_2);
+                if_flag = 0;
+            }
+            if_flag_count = if_flag_count - 1;
+        }else{
+            preProcessamento(arquivo_pre_processado, simbolo, mnemonico, operando1, operando2, vec_op_1, vec_op_2);
+        }
+
+
+        /// Verificar se eh diretiva antes de add a tabela de simbolo;
+        /// Faz o controle das labels para Space e para Const;
+        aux = procuraDiretiva(diretivas,mnemonico);
+        if(aux != -1 && aux != 1 && aux != 2){
+            operando1 = "\0";
+            operando2 = "\0";
+        }
+
+        aux = insereSimbolo(Tsimbolos, simbolo, mnemonico, operando1, operando2, vec_op_1, vec_op_2);
+        aux = procuraInstrucao(operacoes, mnemonico);
+        if(aux!=-1){
+            contador_de_posicao = contador_de_posicao + operacoes[aux].tamanho;
+        }
+        //system("Pause");
 
     }
 }
@@ -487,58 +599,41 @@ int procuraDiretiva (struct diretivas_info diretivas[], string mnemonico)
         return diretiva;
 }
 
-int preProcessamento(fstream& arquivo_pre_processado, string linha)
+void preProcessamento(fstream& arquivo_pre_processado, string simbolo, string mnemonico, string operando1, string operando2, string vec_op_1, string vec_op_2)
 {
-    int a = 0;
-    return a;
+    string linha_pre = "\0";
+
+    if(simbolo.compare("\0")!=0){
+        linha_pre.append(simbolo);
+        linha_pre.append(": ");
+    }
+    if(mnemonico.compare("\0")!=0){
+        linha_pre.append(mnemonico);
+        if(operando1.compare("\0")!=0){
+            linha_pre.append(" ");
+            linha_pre.append(operando1);
+            if(vec_op_1.compare("\0")!=0){
+                linha_pre.append("+");
+                linha_pre.append(vec_op_1);
+            }
+        }
+        if(operando2.compare("\0")!=0){
+            linha_pre.append(",");
+            linha_pre.append(operando2);
+            if(vec_op_2.compare("\0")!=0){
+                linha_pre.append("+");
+                linha_pre.append(vec_op_2);
+            }
+        }
+    }
+
+
+    arquivo_pre_processado << linha_pre << endl;
 }
 
-/////////////////////////////////////////////////////////////////
-
-//// Falta terminar para adicionar simbolos a partir de operandos.
-//// Falta adicionar a posição e endereços relativos à lista.
-/*int insereSimbolo(struct simbolo_tab Tsimbolos[], string simbolo, string mnemonico, string operando1, string operando2)
+// Retorna 1 se adicionou algum simbolo, retorna -1 se não adicionou nada;
+int insereSimbolo(struct simbolo_tab Tsimbolos[], string simbolo, string mnemonico, string operando1, string operando2, string vec_op_1, string vec_op_2)
 {
-    int index, i = 0;
-
-    if(simbolo.compare("\0")==0){
-        return -1;
-    }else{
-        index = procuraSimbolo(simbolo, Tsimbolos);
-        if(index != -1){
-            while(Tsimbolos[index].lista[i][1]!=-1)
-            {
-                i++;
-            }
-            Tsimbolos[index].lista[i][1] = contador_de_posicao;
-            //Tsimcolos[index].lista[i+1] = -1;
-        }else{
-            contador_de_simbolos++;
-            Tsimbolos[contador_de_simbolos].simbolo = simbolo;
-            Tsimbolos[contador_de_simbolos].pos_fim_lista = Tsimbolos[contador_de_simbolos].pos_fim_lista + 1;
-            Tsimbolos[contador_de_simbolos].flag_def = 1;
-
-            for(int j = 0; j < 50;j++){
-                Tsimbolos[contador_de_simbolos].lista[j][1]=-1;
-            }
-
-            if(mnemonico.compare("SPACE")==0){
-                Tsimbolos[contador_de_simbolos].space = 1;
-                if(operando1.compare("\0")==0){
-                }else{
-                    Tsimbolos[contador_de_simbolos].space_vec = stoi(operando1);
-                    //Tsimbolos[contador_de_simbolos].space_vec = 1;
-                }
-            }
-
-        }
-
-    }
-    return 1;
-}*/
-
-
-int insereSimbolo(struct simbolo_tab Tsimbolos[], string simbolo, string mnemonico, string operando1, string operando2, string vec_op_1, string vec_op_2){
 
     int index, i = 0;
 
@@ -549,66 +644,78 @@ int insereSimbolo(struct simbolo_tab Tsimbolos[], string simbolo, string mnemoni
         if(index != -1) // Simbolo já existente em Tsimbolos
         {
             Tsimbolos[index].flag_def = 1; //flag de endereço da label encontrado;
-            Tsimbolos[index].valor = contador_de_posicao; //Endereço da label;
+            Tsimbolos[index].valor = contador_de_posicao + 1; //Endereço da label;
             if(mnemonico.compare("SPACE")==0)
             {
                 Tsimbolos[index].space == 1;
-                if(operando1.compare("\0")!=){
+                contador_de_posicao = contador_de_posicao + 1;
+                if(operando1.compare("\0")!=0){
                     Tsimbolos[index].space_vec = stoi(operando1, nullptr, 0); //Verificar aqui se o space funciona;
+                    contador_de_posicao = contador_de_posicao + stoi(operando1, nullptr, 0) - 1; // soma a o vetor no endereço
+                    operando1 = "\0";
                 }
+            }else if(mnemonico.compare("CONST")==0)
+            {
+                Tsimbolos[index].valor = contador_de_posicao + 1; //Endereço da label;
+                Tsimbolos[index].cte = 1;
+                Tsimbolos[index].cte_val = stoi(operando1, nullptr, 0);
+                contador_de_posicao = contador_de_posicao + 1; //Endereço da label;
             }
         // Verificar erro de label já existente aqui.
         }else{  // Simbolo não existe na Tsimbolos
             contador_de_simbolos++;
             Tsimbolos[contador_de_simbolos].simbolo = simbolo;
-            Tsimbolos[index].flag_def = 1; //flag de endereço da label encontrado;
-            Tsimbolos[index].valor = contador_de_posicao; //Endereço da label;
+            Tsimbolos[contador_de_simbolos].flag_def = 1; //flag de endereço da label encontrado;
+            Tsimbolos[contador_de_simbolos].valor = contador_de_posicao + 1; //Endereço da label;
 
             if(mnemonico.compare("SPACE")==0)
             {
-                Tsimbolos[index].space == 1;
-                if(operando1.compare("\0")!=){
-                    Tsimbolos[index].space_vec = stoi(operando1, nullptr, 0); //Verificar aqui se o space funciona;
+                Tsimbolos[contador_de_simbolos].space == 1;
+                contador_de_posicao = contador_de_posicao + 1;
+                if(operando1.compare("\0")!=0){
+                    Tsimbolos[contador_de_simbolos].space_vec = stoi(operando1, nullptr, 0); //Verificar aqui se o space funciona;
+                    contador_de_posicao = contador_de_posicao + stoi(operando1, nullptr, 0) - 1; // soma a o vetor no endereço
+                    operando1 = "\0";
                 }
+            }else if(mnemonico.compare("CONST")==0)
+            {
+                Tsimbolos[index].valor = contador_de_posicao + 1; //Endereço da label;
+                Tsimbolos[index].cte = 1;
+                Tsimbolos[index].cte_val = stoi(operando1, nullptr, 0);
+                contador_de_posicao = contador_de_posicao + 1; //Endereço da label;
             }
         // Verificar erro de label já existente aqui.
         }
     }
-    else if(operando1.compare("\0")!=0) // Caso exista simbolo não definido ou definido como argumento
+    if(operando1.compare("\0")!=0) // Caso exista simbolo não definido ou definido como argumento
     {
         index = procuraSimbolo(operando1, Tsimbolos);
+
+        //cout << index << endl;
         if(index != -1) // Simbolo já existente em Tsimbolos
         {
-            while(Tsimbolos[index].lista[i][1]!=-1)
-            {
-                i++;
-            }
-            //Tsimbolos[index].flag_def = 1; //flag de endereço da label encontrado;
-            //Tsimbolos[index].valor = contador_de_posicao; //Endereço da label;
             Tsimbolos[index].pos_fim_lista++;
-            Tsimbolos[index].lista[Tsimbolos[index].pos_fim_lista][1] = contador_de_posicao; // posição onde a label é utilizada;
+            Tsimbolos[index].lista[Tsimbolos[index].pos_fim_lista][0] = contador_de_posicao + 2; // posição onde a label é utilizada;
             if(vec_op_1.compare("\0")!=0)
             {
-                Tsimbolos[index].lista[Tsimbolos[index].pos_fim_lista][2] = stoi(vec_op_1, nullptr, 0);
+                Tsimbolos[index].lista[Tsimbolos[index].pos_fim_lista][1] = stoi(vec_op_1, nullptr, 0);
                 //Verificar erro de salto maior que o space;
             }
         }else{  // Simbolo não existe na Tsimbolos
             contador_de_simbolos++;
-            Tsimbolos[contador_de_simbolos].simbolo = simbolo;
-            //Tsimbolos[index].flag_def = 1; //flag de endereço da label encontrado;
-            //Tsimbolos[index].valor = contador_de_posicao; //Endereço da label;
-            Tsimbolos[index].pos_fim_lista++;
-            Tsimbolos[index].lista[Tsimbolos[index].pos_fim_lista][1] = contador_de_posicao; // posição onde a label é utilizada;
+            Tsimbolos[contador_de_simbolos].simbolo = operando1;
+            Tsimbolos[contador_de_simbolos].pos_fim_lista++;
+            Tsimbolos[contador_de_simbolos].lista[Tsimbolos[contador_de_simbolos].pos_fim_lista][0] = contador_de_posicao + 2; // posição onde a label é utilizada;
+
             if(vec_op_1.compare("\0")!=0)
             {
-                Tsimbolos[index].lista[Tsimbolos[index].pos_fim_lista][2] = stoi(vec_op_1, nullptr, 0);
+                Tsimbolos[contador_de_simbolos].lista[Tsimbolos[contador_de_simbolos].pos_fim_lista][1] = stoi(vec_op_1, nullptr, 0);
                 //Verificar erro de salto maior que o space;
             }
         }
     }
-    else if(operando2.compare("\0")!=) // Caso exista simbolo não definido ou definido como argumento
+    if(operando2.compare("\0")!=0) // Caso exista simbolo não definido ou definido como argumento
     {
-///////
         index = procuraSimbolo(operando2, Tsimbolos);
         if(index != -1) // Simbolo já existente em Tsimbolos
         {
@@ -616,35 +723,32 @@ int insereSimbolo(struct simbolo_tab Tsimbolos[], string simbolo, string mnemoni
             {
                 i++;
             }
-            //Tsimbolos[index].flag_def = 1; //flag de endereço da label encontrado;
-            //Tsimbolos[index].valor = contador_de_posicao; //Endereço da label;
             Tsimbolos[index].pos_fim_lista++;
-            Tsimbolos[index].lista[Tsimbolos[index].pos_fim_lista][1] = contador_de_posicao; // posição onde a label é utilizada;
-            if(vec_op_1.compare("\0")!=0)
+            Tsimbolos[index].lista[Tsimbolos[index].pos_fim_lista][0] = contador_de_posicao + 3; // posição onde a label é utilizada;
+            if(vec_op_2.compare("\0")!=0)
             {
-                Tsimbolos[index].lista[Tsimbolos[index].pos_fim_lista][2] = stoi(vec_op_1, nullptr, 0);
+                Tsimbolos[index].lista[Tsimbolos[index].pos_fim_lista][1] = stoi(vec_op_2, nullptr, 0);
                 //Verificar erro de salto maior que o space;
             }
         }else{  // Simbolo não existe na Tsimbolos
             contador_de_simbolos++;
-            Tsimbolos[contador_de_simbolos].simbolo = simbolo;
-            //Tsimbolos[index].flag_def = 1; //flag de endereço da label encontrado;
-            //Tsimbolos[index].valor = contador_de_posicao; //Endereço da label;
-            Tsimbolos[index].pos_fim_lista++;
-            Tsimbolos[index].lista[Tsimbolos[index].pos_fim_lista][1] = contador_de_posicao; // posição onde a label é utilizada;
-            if(vec_op_1.compare("\0")!=0)
+            Tsimbolos[contador_de_simbolos].simbolo = operando2;
+            Tsimbolos[contador_de_simbolos].pos_fim_lista++;
+            Tsimbolos[contador_de_simbolos].lista[Tsimbolos[contador_de_simbolos].pos_fim_lista][0] = contador_de_posicao + 3; // posição onde a label é utilizada;
+            if(vec_op_2.compare("\0")!=0)
             {
-                Tsimbolos[index].lista[Tsimbolos[index].pos_fim_lista][2] = stoi(vec_op_1, nullptr, 0);
+                Tsimbolos[contador_de_simbolos].lista[Tsimbolos[contador_de_simbolos].pos_fim_lista][1] = stoi(vec_op_2, nullptr, 0);
                 //Verificar erro de salto maior que o space;
             }
         }
-///////
     }
+    if(simbolo.compare("\0")==0 && operando1.compare("\0")==0 && operando2.compare("\0")==0){
+        return -1;
+    }
+    return 1;
 }
 
-
-//////////////////////////////////////////////////////////////////
-
+//Retorna o Index do simbolo
 int procuraSimbolo(string simbolo, struct simbolo_tab Tsimbolos[])
 {
     // retorna -1 se o simbolo não existe.
@@ -662,4 +766,40 @@ int procuraSimbolo(string simbolo, struct simbolo_tab Tsimbolos[])
         //cout << index << "++" << endl;
     }
     return index;
+}
+
+//Retorna o Index da diretiva EQU
+int procuraEQU(string simbolo, struct diretiva_tab Tdiretivas[])
+{
+    int i = 0;
+    int index = -1;
+
+    for(i = 0; i <= contador_de_diretivas; i++){
+        if(simbolo.compare(Tdiretivas[i].diretiva) == 0){
+            index = i;
+            break;
+        }
+    }
+    return index;
+}
+
+void insereEQU(string simbolo, string operando1, struct diretiva_tab Tdiretivas[])
+{
+    int index = -1;
+
+    index = procuraEQU(simbolo, Tdiretivas);
+    if(index==-1) // Diretiva não existe
+    {
+        if(simbolo.compare("\0")!=0){
+            if(operando1.compare("\0")!=0){
+                contador_de_diretivas++;
+                Tdiretivas[contador_de_diretivas].diretiva = simbolo;
+                Tdiretivas[contador_de_diretivas].valor = stoi(operando1, nullptr, 0);
+            }else{
+            cout << "Erro! diretiva EQU sem parametro" << endl;
+            }
+        }
+    }else{
+        cout << "Erro! Label de Diretiva ja Existente." << endl;
+    }
 }
