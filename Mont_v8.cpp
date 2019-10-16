@@ -24,8 +24,8 @@ int insereSimbolo(struct simbolo_tab Tsimbolos[], string simbolo, string mnemoni
 void preProcessamento(fstream& arquivo_pre_processado, string simbolo, string mnemonico, string operando1, string operando2, string vec_op_1, string vec_op_2);
 int procuraEQU(string simbolo, struct diretiva_tab Tdiretivas[]);
 void insereEQU(string simbolo, string operando1, struct diretiva_tab Tdiretivas[]);
-void montagem(fstream& arquivo_objeto, string simbolo, string mnemonico, string operando1, string operando2, string vec_op_1, string vec_op_2, struct objeto_code code[], struct operacoes_info operacoes[], struct simbolo_tab Tsimbolos[]);
-void corrige_end(struct simbolo_tab Tsimbolos[], struct  objeto_code code[], fstream& arquivo_objeto);
+void montagem(fstream& arquivo_objeto, string simbolo, string mnemonico, string operando1, string operando2, string vec_op_1, string vec_op_2, struct objeto_code code[], struct operacoes_info operacoes[], struct simbolo_tab Tsimbolos[], struct diretivas_info diretivas[]);
+void corrige_end(struct simbolo_tab Tsimbolos[], struct  objeto_code code[], fstream& arquivo_objeto); //corrige endereço tbm escreve no arquivo objeto;
 
 //////////////////////////////////////////////////////////
 // Estruturas
@@ -74,6 +74,10 @@ struct objeto_code
     int p_abs = 0;
     // tamanho da operacao
     int tam = 0;
+    // space
+    string space = "\0";
+    //const
+    int cte = -1;
 
     //offset
 //    int vec_op_1 = -1;
@@ -184,10 +188,15 @@ int main(int argc, char *argv[]){
 //
 /*for(int i = 0; i <= contador_de_simbolos; i++){
     cout << "Simb: " << Tsimbolos[i].simbolo << endl;
-    cout << "val: " << Tsimbolos[i].valor << endl;
+    cout << "valor (end. def): " << Tsimbolos[i].valor << endl;
+    cout << "Space: " << Tsimbolos[i].space << endl;
+    cout << "Const: " << Tsimbolos[i].cte << endl;
+    cout << "valor const: " << Tsimbolos[i].cte_val << endl;
+    cout << "Flag_def: " << Tsimbolos[i].flag_def << endl;
+    cout << "-------" << endl;
     for(int j = 0; j <= Tsimbolos[i].pos_fim_lista; j++){
-        cout << "end:: " << Tsimbolos[i].lista[j][0] << endl;
-        cout << "vec:: " << Tsimbolos[i].lista[j][1] << endl;
+        cout << "end. sub:: " << Tsimbolos[i].lista[j][0] << endl;
+        cout << "vetor:: " << Tsimbolos[i].lista[j][1] << endl;
     }
     cout << "\n" << endl;
 }*/
@@ -198,6 +207,14 @@ int main(int argc, char *argv[]){
     cout << "\n" << endl;
 }*/
 
+/*for(int i = 0; i <= contador_de_linha_obj; i++){
+    cout << "inst: " << code[i].mnemonico << endl;
+    cout << "posicao_abs: " << code[i].p_abs << endl;
+    cout << "inst_tam: " << code[i].tam << endl;
+    cout << "\n" << endl;
+}*/
+
+
 for(int i = 0; i <= contador_de_linha_obj; i++){
     cout << "Simb: " << code[i].mnemonico << endl;
     cout << "Opcode: " << code[i].opcode << endl;
@@ -205,6 +222,8 @@ for(int i = 0; i <= contador_de_linha_obj; i++){
     cout << "end_op1: " << code[i].end_op_1 << endl;
     cout << "Op2: " << code[i].operador2 << endl;
     cout << "end_op2: " << code[i].end_op_2 << endl;
+    cout << "Space: " << code[i].space << endl;
+    cout << "Const: " << code[i].cte << endl;
     cout << "\n" << endl;
 }
 
@@ -607,15 +626,16 @@ void linha (fstream& arquivo_formatado, fstream& arquivo_objeto, fstream& arquiv
         if(mnemonico.compare("SECTION")!=0){
             if(if_flag == 1){
                 if(if_flag_count == 0){
-                    montagem(arquivo_objeto, simbolo, mnemonico, operando1, operando2, vec_op_1, vec_op_2, code, operacoes, Tsimbolos);
+                    montagem(arquivo_objeto, simbolo, mnemonico, operando1, operando2, vec_op_1, vec_op_2, code, operacoes, Tsimbolos, diretivas);
                     if_flag = 0;
                 }
                 if_flag_count = if_flag_count - 1;
             }else{
-                montagem(arquivo_objeto, simbolo, mnemonico, operando1, operando2, vec_op_1, vec_op_2, code, operacoes, Tsimbolos);
+                montagem(arquivo_objeto, simbolo, mnemonico, operando1, operando2, vec_op_1, vec_op_2, code, operacoes, Tsimbolos, diretivas);
             }
         }
         //system("Pause");
+        //cout << contador_de_simbolos << endl;
     }
 
     // aqui verificar-se se já chegou ao fim do arquivo, e assim podemos corrigir os endereços relativos e "imprimir" no arquivo objeto.
@@ -691,7 +711,7 @@ void preProcessamento(fstream& arquivo_pre_processado, string simbolo, string mn
     arquivo_pre_processado << linha_pre << endl;
 }
 
-void montagem(fstream& arquivo_objeto, string simbolo, string mnemonico, string operando1, string operando2, string vec_op_1, string vec_op_2, struct objeto_code code[], struct operacoes_info operacoes[], struct simbolo_tab Tsimbolos[])
+void montagem(fstream& arquivo_objeto, string simbolo, string mnemonico, string operando1, string operando2, string vec_op_1, string vec_op_2, struct objeto_code code[], struct operacoes_info operacoes[], struct simbolo_tab Tsimbolos[], struct diretivas_info diretivas[])
 {
 
     int index = -1;
@@ -753,35 +773,85 @@ void montagem(fstream& arquivo_objeto, string simbolo, string mnemonico, string 
 
         }
     }
+
+    // Insere Space para o código
+    index = procuraSimbolo(simbolo, Tsimbolos);
+    //cout << "???? Index :: " << index << " ???? cte :: " << Tsimbolos[index].space_vec << endl;
+    if(Tsimbolos[index].space == 1){
+        for(aux = 0; aux < Tsimbolos[index].space_vec; aux++){
+            contador_de_linha_obj++;
+            //code[contador_de_linha_obj].mnemonico = mnemonico;
+            code[contador_de_linha_obj].mnemonico = simbolo;
+            code[contador_de_linha_obj].space = "OO";
+        }
+        //cout << "???? :: simbolo :: " << simbolo << endl;
+    }
+
+    // Insere const para o código
+    index = procuraSimbolo(simbolo, Tsimbolos);
+    if(Tsimbolos[index].cte == 1){
+        contador_de_linha_obj++;
+        //code[contador_de_linha_obj].mnemonico = mnemonico;
+        code[contador_de_linha_obj].mnemonico = simbolo;
+        //cout << "????:: cte_val :: " << Tsimbolos[contador_de_simbolos].simbolo << endl;
+        //cout << "????:: cte_val :: " << Tsimbolos[contador_de_simbolos].cte_val << endl;
+        code[contador_de_linha_obj].cte = Tsimbolos[index].cte_val;
+    }
+
 }
 
-/// Arrumar essa funcao - nao ta funcinando
+/// Arrumar essa funcao - nao ta funcionando
 void corrige_end(struct simbolo_tab Tsimbolos[], struct  objeto_code code[], fstream& arquivo_objeto)
 {
     int posicao = -1;
 
     for(int i = 0; i <= contador_de_simbolos; i++){
         for(int j = 0; j <= Tsimbolos[i].pos_fim_lista; j++){
-/*//        cout << "Simb: " << code[i].mnemonico << endl;
-//        cout << "Opcode: " << code[i].opcode << endl;
-//        cout << "Op1: " << code[i].operador1 << endl;
-//        cout << "end_op1: " << code[i].end_op_1 << endl;
-//        cout << "Op2: " << code[i].operador2 << endl;
-//        cout << "end_op2: " << code[i].end_op_2 << endl;
-//        cout << "\n" << endl;
-//        index = procuraSimbolo(code[i].mnemonico, Tsimbolos);
-*/
             posicao = Tsimbolos[i].lista[j][0];
             for(int k = 0; k <= contador_de_linha_obj; k++){
-                if((code[k].p_abs+code[k].tam) > posicao){
+                if((code[k].p_abs+code[k].tam) > posicao && posicao > code[k].p_abs){
                     posicao = posicao - code[k].p_abs;
+                    //cout << posicao << "++" << endl;
                     if(posicao == 2){
-                        code[k].end_op_2 = Tsimbolos[i].valor + Tsimbolos[i].lista[j][2];
+                        code[k].end_op_2 = Tsimbolos[i].valor;
+                        if(Tsimbolos[i].lista[j][1] != -1){
+                            code[k].end_op_2 = code[k].end_op_2 + Tsimbolos[i].lista[j][1];
+                        }
                     }else if(posicao == 1){
-                        code[k].end_op_1 = Tsimbolos[i].valor + Tsimbolos[i].lista[j][2];
+                        code[k].end_op_1 = Tsimbolos[i].valor;
+                        if(Tsimbolos[i].lista[j][1] != -1){
+                            code[k].end_op_1 = code[k].end_op_1 + Tsimbolos[i].lista[j][1];
+                        }
                     }
                 }
             }
+        }
+    }
+
+    for(int k = 0; k <= contador_de_linha_obj; k++){
+        // Escrevendo no arquivo objeto;
+        if(k!=0){
+            arquivo_objeto << " ";
+        }
+
+        if(code[k].opcode!=-1){
+            arquivo_objeto << code[k].opcode;
+        }
+        if(code[k].operador1.compare("\0")!=0){
+            arquivo_objeto << " ";
+            arquivo_objeto << code[k].end_op_1;
+        }
+        if(code[k].operador2.compare("\0")!=0){
+            arquivo_objeto << " ";
+            arquivo_objeto << code[k].end_op_2;
+        }
+        if(code[k].space.compare("\0")!=0){
+            arquivo_objeto << " ";
+            arquivo_objeto << code[k].space;
+        }
+        if(code[k].cte != -1){
+            arquivo_objeto << " ";
+            arquivo_objeto << code[k].cte;
         }
     }
 }
@@ -802,12 +872,14 @@ int insereSimbolo(struct simbolo_tab Tsimbolos[], string simbolo, string mnemoni
             Tsimbolos[index].valor = contador_de_posicao + 1; //Endereço da label;
             if(mnemonico.compare("SPACE")==0)
             {
-                Tsimbolos[index].space == 1;
+                Tsimbolos[index].space = 1;
                 contador_de_posicao = contador_de_posicao + 1;
                 if(operando1.compare("\0")!=0){
                     Tsimbolos[index].space_vec = stoi(operando1, nullptr, 0); //Verificar aqui se o space funciona;
                     contador_de_posicao = contador_de_posicao + stoi(operando1, nullptr, 0) - 1; // soma a o vetor no endereço
                     operando1 = "\0";
+                }else if(operando1.compare("\0")==0){
+                    Tsimbolos[index].space_vec = 1; //Verificar aqui se o space funciona;
                 }
             }else if(mnemonico.compare("CONST")==0)
             {
@@ -826,18 +898,21 @@ int insereSimbolo(struct simbolo_tab Tsimbolos[], string simbolo, string mnemoni
 
             if(mnemonico.compare("SPACE")==0)
             {
-                Tsimbolos[contador_de_simbolos].space == 1;
+                Tsimbolos[contador_de_simbolos].space = 1;
                 contador_de_posicao = contador_de_posicao + 1;
                 if(operando1.compare("\0")!=0){
                     Tsimbolos[contador_de_simbolos].space_vec = stoi(operando1, nullptr, 0); //Verificar aqui se o space funciona;
                     contador_de_posicao = contador_de_posicao + stoi(operando1, nullptr, 0) - 1; // soma a o vetor no endereço
                     operando1 = "\0";
+                }else if(operando1.compare("\0")==0){
+                    Tsimbolos[index].space_vec = 1; //Verificar aqui se o space funciona;
                 }
             }else if(mnemonico.compare("CONST")==0)
             {
-                Tsimbolos[index].valor = contador_de_posicao + 1; //Endereço da label;
-                Tsimbolos[index].cte = 1;
-                Tsimbolos[index].cte_val = stoi(operando1, nullptr, 0);
+                Tsimbolos[contador_de_simbolos].valor = contador_de_posicao + 1; //Endereço da label;
+                Tsimbolos[contador_de_simbolos].cte = 1;
+                Tsimbolos[contador_de_simbolos].cte_val = stoi(operando1, nullptr, 0);
+                //cout << "???? ::cte:: " << Tsimbolos[contador_de_simbolos].cte << " ???? ::cte_val:: " << Tsimbolos[contador_de_simbolos].cte_val << " ???? ::::index:: " << contador_de_simbolos << endl;
                 contador_de_posicao = contador_de_posicao + 1; //Endereço da label;
                 operando1 = "\0";
             }
@@ -902,6 +977,7 @@ int insereSimbolo(struct simbolo_tab Tsimbolos[], string simbolo, string mnemoni
     if(simbolo.compare("\0")==0 && operando1.compare("\0")==0 && operando2.compare("\0")==0){
         return -1;
     }
+    //cout << "???? ::cte:: " << Tsimbolos[index].cte << " ???? ::cte_val:: " << Tsimbolos[index].cte_val << endl;
     return 1;
 }
 
