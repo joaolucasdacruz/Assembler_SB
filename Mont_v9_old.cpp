@@ -914,7 +914,7 @@ int insereSimbolo(struct simbolo_tab Tsimbolos[], string simbolo, string mnemoni
                     contador_de_posicao = contador_de_posicao + stoi(operando1, nullptr, 0) - 1; // soma a o vetor no endereço
                     operando1 = "\0";
                 }else if(operando1.compare("\0")==0){
-                    Tsimbolos[contador_de_posicao].space_vec = 1; //Verificar aqui se o space funciona;
+                    Tsimbolos[index].space_vec = 1; //Verificar aqui se o space funciona;
                 }
             }else if(mnemonico.compare("CONST")==0)
             {

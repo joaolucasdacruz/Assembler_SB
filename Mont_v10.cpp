@@ -793,7 +793,7 @@ void montagem(fstream& arquivo_objeto, string simbolo, string mnemonico, string 
             code[contador_de_linha_obj].mnemonico = simbolo;
             code[contador_de_linha_obj].space = "OO";
         }
-        //cout << "???? :: simbolo :: " << simbolo << endl;
+        cout << "???? :: simbolo :: " << simbolo << " ???? :: spaceflag:: " << Tsimbolos[index].space_vec << endl;
     }
 
     // Insere const para o código
@@ -855,11 +855,11 @@ void corrige_end(struct simbolo_tab Tsimbolos[], struct  objeto_code code[], fst
             arquivo_objeto << code[k].end_op_2;
         }
         if(code[k].space.compare("\0")!=0){
-            arquivo_objeto << " ";
+            //arquivo_objeto << " ";
             arquivo_objeto << code[k].space;
         }
         if(code[k].cte != -1){
-            arquivo_objeto << " ";
+            //arquivo_objeto << " ";
             arquivo_objeto << code[k].cte;
         }
     }
@@ -914,7 +914,7 @@ int insereSimbolo(struct simbolo_tab Tsimbolos[], string simbolo, string mnemoni
                     contador_de_posicao = contador_de_posicao + stoi(operando1, nullptr, 0) - 1; // soma a o vetor no endereço
                     operando1 = "\0";
                 }else if(operando1.compare("\0")==0){
-                    Tsimbolos[contador_de_posicao].space_vec = 1; //Verificar aqui se o space funciona;
+                    Tsimbolos[contador_de_simbolos].space_vec = 1; //Verificar aqui se o space funciona;
                 }
             }else if(mnemonico.compare("CONST")==0)
             {
