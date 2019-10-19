@@ -10,6 +10,7 @@ using namespace std;
 #define TAMANHO_DE_VARIAVEL 50
 #define NUMERO_DE_SIMBOLOS 500
 #define LINHAS_DE_CODIGO 500
+#define NUMERO_DE_DADOS 200
 
 //////////////////////////////////////////////////////////
 //Prototipo das Funcoes
@@ -17,7 +18,7 @@ using namespace std;
 void preencheOperacoes (struct operacoes_info operacoes[]);
 void preencheDiretivas (struct diretivas_info diretivas[]);
 void formataArquivo(ifstream& arquivo_original, fstream& arquivo_formatado);
-void linha(fstream& arquivo_formatado, fstream& arquivo_objeto, fstream& arquivo_pre_processado, struct operacoes_info operacoes[], struct diretivas_info diretivas[], struct simbolo_tab Tsimbolos[], struct diretiva_tab Tdiretivas[], struct objeto_code code[]);
+void linha(fstream& arquivo_formatado, fstream& arquivo_objeto, fstream& arquivo_pre_processado, struct operacoes_info operacoes[], struct diretivas_info diretivas[], struct simbolo_tab Tsimbolos[], struct diretiva_tab Tdiretivas[], struct objeto_code code[], struct data_tab Tdata[]);
 int procuraInstrucao(struct operacoes_info operacoes[], string mnemonico);
 int procuraDiretiva(struct diretivas_info diretivas[], string mnemonico);
 int procuraSimbolo(string simbolo, struct simbolo_tab Tsimbolos[]);
@@ -62,6 +63,15 @@ struct diretiva_tab
     int valor;
 };
 
+struct data_tab{
+    string simbolo;
+    string mnemonico;
+    string operando1;
+    string operando2;
+    string vec_op_1;
+    string vec_op_2;
+};
+
 struct objeto_code
 {
     string mnemonico = "\0";
@@ -95,6 +105,7 @@ struct objeto_code
 unsigned int text_flag = 0, data_flag = 0, ordem_section = 0;
 int contador_de_simbolos = -1; // Quantidade de simbolos dentro da tabela de simbolos;
 int contador_de_posicao = -1; //Posição absoluta dentro do arquivo de código (texto);
+int contador_de_dados = -1;
 int contador_de_linha_original = -1; //Posição do contador de linha (contador de programa). Serve para imprimir os erros.
 int contador_de_linha_obj = -1; //Posição do contador de linha do programa do arquivo pre processado. Serve para marcar a posição das labels. // tbm serve para contar o codigo objeto;
 int contador_de_diretivas = -1;
@@ -110,6 +121,8 @@ int main(int argc, char *argv[]){
     struct simbolo_tab Tsimbolos[NUMERO_DE_SIMBOLOS];
     struct diretiva_tab Tdiretivas[NUMERO_DE_SIMBOLOS];
     struct objeto_code code[LINHAS_DE_CODIGO];
+    struct data_tab Tdata[NUMERO_DE_DADOS];
+
     ifstream arquivo_original;
     fstream arquivo_pre_processado;
     fstream arquivo_objeto;
@@ -179,7 +192,7 @@ int main(int argc, char *argv[]){
 
 // Montador de Passo Unico
 
-    linha(arquivo_formatado, arquivo_objeto, arquivo_pre_processado, operacoes, diretivas, Tsimbolos, Tdiretivas, code);
+    linha(arquivo_formatado, arquivo_objeto, arquivo_pre_processado, operacoes, diretivas, Tsimbolos, Tdiretivas, code, Tdata);
 
 //// Testando Tabela de simbolos
 //    cout << "Definido? - " << Tsimbolos[2].flag_def << endl;
@@ -188,7 +201,7 @@ int main(int argc, char *argv[]){
 //    cout << "Lista - Simbolo 'H'- " << i << " - " << Tsimbolos[2].lista[i] << endl;
 //}
 //
-/*for(int i = 0; i <= contador_de_simbolos; i++){
+for(int i = 0; i <= contador_de_simbolos; i++){
     cout << "Simb: " << Tsimbolos[i].simbolo << endl;
     cout << "valor (end. def): " << Tsimbolos[i].valor << endl;
     cout << "Space: " << Tsimbolos[i].space << endl;
@@ -201,7 +214,7 @@ int main(int argc, char *argv[]){
         cout << "vetor:: " << Tsimbolos[i].lista[j][1] << endl;
     }
     cout << "\n" << endl;
-}*/
+}
 
 /*for(int i = 0; i <= contador_de_diretivas; i++){
     cout << "Simb: " << Tdiretivas[i].diretiva << endl;
@@ -217,7 +230,7 @@ int main(int argc, char *argv[]){
 }*/
 
 
-for(int i = 0; i <= contador_de_linha_obj; i++){
+/*for(int i = 0; i <= contador_de_linha_obj; i++){
     cout << "Simb: " << code[i].mnemonico << endl;
     cout << "Opcode: " << code[i].opcode << endl;
     cout << "Op1: " << code[i].operador1 << endl;
@@ -227,8 +240,12 @@ for(int i = 0; i <= contador_de_linha_obj; i++){
     cout << "Space: " << code[i].space << endl;
     cout << "Const: " << code[i].cte << endl;
     cout << "\n" << endl;
-}
+}*/
 
+/*    cout << "contador_de_dados:: " << contador_de_dados << endl;
+for (int i=0;i<=contador_de_dados;i++){
+    cout << "::DATA:: " << Tdata[i].str_data << endl;
+}*/
 
 // Encerrando programa
     arquivo_formatado.close();
@@ -400,7 +417,7 @@ void formataArquivo (ifstream& arquivo_original, fstream& arquivo_formatado)
 
 }
 
-void linha (fstream& arquivo_formatado, fstream& arquivo_objeto, fstream& arquivo_pre_processado, struct operacoes_info operacoes[], struct diretivas_info diretivas[], struct simbolo_tab Tsimbolos[], struct diretiva_tab Tdiretivas[], struct objeto_code code[])
+void linha (fstream& arquivo_formatado, fstream& arquivo_objeto, fstream& arquivo_pre_processado, struct operacoes_info operacoes[], struct diretivas_info diretivas[], struct simbolo_tab Tsimbolos[], struct diretiva_tab Tdiretivas[], struct objeto_code code[], struct data_tab Tdata[])
 {
     string linha;
     string simbolo, mnemonico, operando1, operando2;
@@ -551,8 +568,10 @@ void linha (fstream& arquivo_formatado, fstream& arquivo_objeto, fstream& arquiv
         ///Verificando ordem das secoes
         if(data_flag == 0 && text_flag==1){
             ordem_section = 1; // Secao text vem antes de data
+            //cout << "+++++ ::ordem_section:: " << ordem_section << endl;
         }else if(data_flag == 1 && text_flag==0){
             ordem_section = 2; // secao data vem antes de texto
+            //cout << "+++++ ::ordem_section:: " << ordem_section << endl;
         }
 
 
@@ -565,6 +584,22 @@ void linha (fstream& arquivo_formatado, fstream& arquivo_objeto, fstream& arquiv
                 data_flag = 1;
             }else if(arquivo_formatado.eof() && data_flag == 0 && text_flag ==0){
                 cout << "Erro! Seção Text ou Seção Data faltando!" << endl;
+            }
+        }
+
+        //////
+        //Reorganizando seção data e text parte 1
+        aux = procuraDiretiva(diretivas,mnemonico);
+        if(aux!=0){
+            //cout << "+++++ ::text:: " << text_flag << "+++++ ::data:: " << data_flag << endl;
+            if((data_flag==1) && (text_flag==0)){
+                contador_de_dados = contador_de_dados + 1;
+                Tdata[contador_de_dados].simbolo = simbolo;
+                Tdata[contador_de_dados].mnemonico = mnemonico;
+                Tdata[contador_de_dados].operando1 = operando1;
+                Tdata[contador_de_dados].operando2 = operando2;
+                Tdata[contador_de_dados].vec_op_1 = vec_op_1;
+                Tdata[contador_de_dados].vec_op_2 = vec_op_2;
             }
         }
 
@@ -623,35 +658,80 @@ void linha (fstream& arquivo_formatado, fstream& arquivo_objeto, fstream& arquiv
             preProcessamento(arquivo_pre_processado, simbolo, mnemonico, operando1, operando2, vec_op_1, vec_op_2);
         }
 
+        ///////
+        //Reorganizando seção data e text parte 2
+        if(ordem_section == 1 || (ordem_section == 2 && text_flag == 1)){
+            /// Verificar se eh diretiva antes de add a tabela de simbolo;
+            /// Faz o controle das labels para Space e para Const;
+            aux = procuraDiretiva(diretivas,mnemonico);
+            if(aux != -1 && aux != 1 && aux != 2){
+                operando1 = "\0";
+                operando2 = "\0";
+            }
 
-        /// Verificar se eh diretiva antes de add a tabela de simbolo;
-        /// Faz o controle das labels para Space e para Const;
-        aux = procuraDiretiva(diretivas,mnemonico);
-        if(aux != -1 && aux != 1 && aux != 2){
-            operando1 = "\0";
-            operando2 = "\0";
-        }
+            aux = insereSimbolo(Tsimbolos, simbolo, mnemonico, operando1, operando2, vec_op_1, vec_op_2);
+            aux = procuraInstrucao(operacoes, mnemonico);
+            if(aux!=-1){
+                contador_de_posicao = contador_de_posicao + operacoes[aux].tamanho;
+            }
 
-        aux = insereSimbolo(Tsimbolos, simbolo, mnemonico, operando1, operando2, vec_op_1, vec_op_2);
-        aux = procuraInstrucao(operacoes, mnemonico);
-        if(aux!=-1){
-            contador_de_posicao = contador_de_posicao + operacoes[aux].tamanho;
-        }
-
-        /// MONTAGEM DO CODIGO - ESCREVE NO ARQUIVO OBJETO.
-        if(mnemonico.compare("SECTION")!=0){
-            if(if_flag == 1){
-                if(if_flag_count == 0){
+            /// MONTAGEM DO CODIGO - ESCREVE NO ARQUIVO OBJETO.
+            if(mnemonico.compare("SECTION")!=0){
+                if(if_flag == 1){
+                    if(if_flag_count == 0){
+                        montagem(arquivo_objeto, simbolo, mnemonico, operando1, operando2, vec_op_1, vec_op_2, code, operacoes, Tsimbolos, diretivas);
+                        if_flag = 0;
+                    }
+                    if_flag_count = if_flag_count - 1;
+                }else{
                     montagem(arquivo_objeto, simbolo, mnemonico, operando1, operando2, vec_op_1, vec_op_2, code, operacoes, Tsimbolos, diretivas);
-                    if_flag = 0;
                 }
-                if_flag_count = if_flag_count - 1;
-            }else{
-                montagem(arquivo_objeto, simbolo, mnemonico, operando1, operando2, vec_op_1, vec_op_2, code, operacoes, Tsimbolos, diretivas);
             }
         }
-        //system("Pause");
-        //cout << contador_de_simbolos << endl;
+    }
+
+    ////////////
+    //Reorganizando seção data e text parte 3
+    for(int i = 0; i<=contador_de_dados; i++){
+
+        simbolo = Tdata[i].simbolo;
+        mnemonico = Tdata[i].mnemonico;
+        operando1 = Tdata[i].operando1;
+        operando2 = Tdata[i].operando2;
+        vec_op_1 = Tdata[i].vec_op_1;
+        vec_op_2 = Tdata[i].vec_op_2;
+        ////////////////////////////////////////
+        ////////////////////////////////////////
+        if(ordem_section == 2){
+            /// Verificar se eh diretiva antes de add a tabela de simbolo;
+            /// Faz o controle das labels para Space e para Const;
+            aux = procuraDiretiva(diretivas,mnemonico);
+            if(aux != -1 && aux != 1 && aux != 2){
+                operando1 = "\0";
+                operando2 = "\0";
+            }
+
+            aux = insereSimbolo(Tsimbolos, simbolo, mnemonico, operando1, operando2, vec_op_1, vec_op_2);
+            aux = procuraInstrucao(operacoes, mnemonico);
+            if(aux!=-1){
+                contador_de_posicao = contador_de_posicao + operacoes[aux].tamanho;
+            }
+
+            /// MONTAGEM DO CODIGO - ESCREVE NO ARQUIVO OBJETO.
+            if(mnemonico.compare("SECTION")!=0){
+                if(if_flag == 1){
+                    if(if_flag_count == 0){
+                        montagem(arquivo_objeto, simbolo, mnemonico, operando1, operando2, vec_op_1, vec_op_2, code, operacoes, Tsimbolos, diretivas);
+                        if_flag = 0;
+                    }
+                    if_flag_count = if_flag_count - 1;
+                }else{
+                    montagem(arquivo_objeto, simbolo, mnemonico, operando1, operando2, vec_op_1, vec_op_2, code, operacoes, Tsimbolos, diretivas);
+                }
+            }
+        }
+        ////////////////////////////////////////
+        ////////////////////////////////////////
     }
 
     // aqui verificar-se se já chegou ao fim do arquivo, e assim podemos corrigir os endereços relativos e "imprimir" no arquivo objeto.

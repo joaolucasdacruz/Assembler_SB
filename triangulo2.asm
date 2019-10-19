@@ -1,12 +1,12 @@
-	TRIANGULO: equ     1  ; comentario
+	TRIANGULO: equ     0x01  ; comentario
 SECTION DATA
 	B:		SPACE 2
-g: const 5
+g: const -0x0c
 	H:		SPACE
 	R:		SPACE
 	DOIS:	CONST		2
 f: const   9
-a: const	1
+a: const	-1
 k: space 2
 p: const 7
 SECTION TEXT
