@@ -1183,7 +1183,7 @@ int varSyntax(string var){
 	int i, aux;
 
 	if(var.size() >= 50){
-		cout<<"erro, o tamanho maximo da label e de 50 caracteres: "<< var << " ::linha:: " << contador_de_linha_original << endl;
+		cout<<"o tamanho maximo da label e de 50 caracteres: "<< var << " ::linha:: " << contador_de_linha_original << endl;
 		return(-1);
 	}
 	aux = var[0];
