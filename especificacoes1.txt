@@ -1,0 +1,19 @@
+1. declaração e rótulo ausente: 		Semântico
+2. declaração e rótulo repetido: 		Semântico
+3. pulo para rótulos inválidos;  		Semântico
+4. pulo para seção errada:       		Semântico
+5. dretivas inválidas:    			 		Léxico
+6. Instruções inválidas:         		Léxico
+7. Diretivas ou instruções na seção errada: Semântico
+8. Divisão por zero:                Semântico
+9. Quantidade errada de operandos:  Sítático
+10.Tipo de operando inválido:       Sintáiico (semântico se tiver que verificar o tipo do elemento em outra linha )
+11.Token inválido:                  Léxico
+12.dois rótulos na mesma linha:     Sintático
+13.Seção de TEXT faltando:          (Se couber em uma classificação é semântico)  
+14.Seção inválida:                  (Se o nome da seção tiver escrito errado, isso que entendi, é sintático)
+15. tipo de argumento inválido:     sintático se o argumento não estiver em um lugar do programa (Se vier do usuário), ou semântico caso contrário
+16. Modificação de valor constante: Semântico
+18. Acesso de posição não reservado do SPACE:  Semântico
+
+             

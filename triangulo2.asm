@@ -4,7 +4,7 @@ SECTION DATA
 g: const -0x0c
 	H:		SPACE
 	R:		SPACE
-	DOIS:	CONST		2
+	DOIS:	CONST		0
 f: const   9
 a: const	-1
 k: space 2
