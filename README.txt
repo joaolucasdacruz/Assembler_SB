@@ -7,7 +7,8 @@
 Compilação em windows (Code blocks)
 
 
-Compilação dos programas em Linux:
+
+Compilação dos programas em Linux (necessário g++ e C++11):
 
 g++ -std=c++11 -Wall montador.cpp -o montador
 g++ -std=c++11 -Wall simulador.cpp -o simulador
