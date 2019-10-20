@@ -1,3 +1,13 @@
+/*Trabalho 1 da disciplina software básico UnB*/		
+			/*Autores*/
+/*Alex Alves Bernardes    14/0015213*/       
+/*João Lucas da Cruz      14/0166939*/
+
+
+
+
+
+
 #include <iostream>
 #include <string>
 #include <fstream>
