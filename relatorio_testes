@@ -1,0 +1,9 @@
+1. Não Detecta quando é usada label não declarada no .DATA (teste1.asm)
+
+2. Não Detecta Declaração de rótulos repetidos no .DATA, (no .TEXT detecta, mas mostra a linha errada, como se o erro tivesse na linha  anterior, deve ser pq vc tá contando as linhas começando de zero ) (teste2.asm)
+
+3.  No caso de Diretiva inválida na SEÇÃO DATA, tá printando como se o erro fosse LABEL já existente (teste3.asm)
+
+4. 	Não aponta o erro de instrução inválida. (teste4.asm)
+
+5.  No Caso de número de operando inválidos na instrução, ele tá retornando erro léxico de caractere inválido no token. (teste5.asm)

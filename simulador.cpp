@@ -52,7 +52,7 @@ void multExec(vector <int> **mem,int **acc,int arg_1){
 
 void subExec(vector <int> **mem,int **acc,int arg_1){
 	
-	cout<<"LOAD "<<arg_1<<endl;
+	cout<<"SUB "<<arg_1<<endl;
 	
 	if ((int) (*mem)->size() <= arg_1)
 		(*mem)->resize(arg_1 + 1,0);
@@ -221,6 +221,8 @@ void getInst (std::fstream *objFile, int *acc, vector <int> *mem){
 				if (*acc < 0){
 					arg_1 = mem->at(i+1);
 					i = arg_1;
+				}else{
+						i+=2;
 				}
 			break;
 			
@@ -230,6 +232,8 @@ void getInst (std::fstream *objFile, int *acc, vector <int> *mem){
 				if (*acc > 0){
 					arg_1 = mem->at(i+1);
 					i = arg_1;
+				}else{
+						i+=2;
 				}
 			break;
 			
@@ -239,6 +243,8 @@ void getInst (std::fstream *objFile, int *acc, vector <int> *mem){
 				if (*acc == 0){
 					arg_1 = mem->at(i+1);
 					i = arg_1;
+				}else{
+						i+=2;
 				}
 			break;
 			

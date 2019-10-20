@@ -176,7 +176,7 @@ int main(int argc, char *argv[]){
 
     arquivo_formatado.open(nome_geral_arquivos + ".fmt", ios_base::in);
     arquivo_pre_processado.open(nome_geral_arquivos + extensao_processado, ios_base::out);
-    arquivo_objeto.open(nome_geral_arquivos + extensao_objeto, ios_base::out);
+    arquivo_objeto.open(nome_geral_arquivos + ".txt", ios_base::out);
 
     if(!arquivo_objeto.is_open()||!arquivo_formatado.is_open()||!arquivo_pre_processado.is_open())
     {
